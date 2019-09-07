@@ -1,0 +1,45 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  phpunit:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: baijunyao/mysql
+        env:
+          MYSQL_ROOT_PASSWORD: laravel_bjyblog
+          MYSQL_DATABASE: laravel_bjyblog
+    container:
+      image: baijunyao/php:local
+      volumes:
+        - .:/app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+      - name: Initial
+        run: |
+          cp .env.actions .env
+          composer install
+          php artisan key:generate
+          php artisan passport:keys
+          php artisan migrate
+          php artisan db:seed
+      - name: Test
+        run: |
+          ./vendor/bin/phpunit
+      - name: Slack Success Notify
+        if: success()
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        uses: pullreminders/slack-action@master
+        with:
+          args: '{\"channel\":\"CEWJP77BP\",\"text\":\"PHPUnit Success\"}'
+      - name: Slack Failure Notify
+        if: failure()
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        uses: pullreminders/slack-action@master
+        with:
+          args: '{\"channel\":\"CEWJP77BP\",\"text\":\"PHPUnit Failure\"}'
